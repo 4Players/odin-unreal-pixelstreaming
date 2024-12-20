@@ -1,0 +1,36 @@
+{
+  "FileVersion": 3,
+  "Version": 1,
+  "PlatformAllowList": [ "Win64", "Mac"],
+  "VersionName": "0.1",
+  "FriendlyName": "4Players ODIN Pixel Streaming",
+  "Description": "Plugin to support 4Players ODIN technology when using Unreal's Pixel Streaming.",
+  "Category": "Other",
+  "CreatedBy": "4Players GmbH",
+  "CreatedByURL": "https://www.4players.io",
+  "DocsURL": "",
+  "MarketplaceURL": "",
+  "SupportURL": "",
+  "CanContainContent": true,
+  "IsBetaVersion": false,
+  "IsExperimentalVersion": false,
+  "Installed": false,
+  "Modules": [
+    {
+      "Name": "OdinPixelStreaming",
+      "Type": "Runtime",
+      "LoadingPhase": "Default"
+    }
+  ],
+  "Plugins": [
+    {
+      "Name": "Odin",
+      "Enabled": true,
+      "MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/f45b045efc62416e9f6e6858519ab999",
+    },
+    {
+		"Name": "PixelStreaming",
+		"Enabled": true
+    }
+  ]
+}
