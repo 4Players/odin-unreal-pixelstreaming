@@ -2,8 +2,8 @@
 
 #include "OdinPixelStreamingAudioGenerator.h"
 #include "IPixelStreamingModule.h"
-#include "OdinInitializationSubsystem.h"
 #include "OdinPixelStreaming.h"
+#include "OdinSubsystem.h"
 #include "PixelStreamingAudioComponent.h"
 #include "DSP/FloatArrayMath.h"
 
@@ -92,8 +92,8 @@ bool UOdinPixelStreamingAudioGenerator::StreamerStartGenerating(FString Streamer
     bool bGeneratorWasInitialized = false;
     if (UWorld* World = GetWorld()) {
         if (UGameInstance* GameInstance = World->GetGameInstance()) {
-            if (UOdinInitializationSubsystem* OdinInitSystem =
-                    GameInstance->GetSubsystem<UOdinInitializationSubsystem>()) {
+            if (UOdinSubsystem* OdinInitSystem =
+                    GameInstance->GetSubsystem<UOdinSubsystem>()) {
                 int32 OdinSampleRate   = OdinInitSystem->GetSampleRate();
                 int32 OdinChannelCount = OdinInitSystem->GetChannelCount();
                 UE_LOG(LogOdinPixelStreaming, Verbose,
