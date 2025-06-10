@@ -9,10 +9,8 @@
 
 UOdinPixelStreamingAudioGenerator::UOdinPixelStreamingAudioGenerator()
     : Super()
-    , AudioSink(nullptr)
-    , bIsGenerating(false)
-{
-}
+      , AudioSink(nullptr)
+      , bIsGenerating(false) {}
 
 void UOdinPixelStreamingAudioGenerator::BeginDestroy()
 {
@@ -26,7 +24,7 @@ bool UOdinPixelStreamingAudioGenerator::StartGenerating(FString PlayerToListenTo
     if (!PixelStreamingModule.IsReady()) {
         UE_LOG(LogOdinPixelStreaming, Error,
                TEXT("UOdinPixelStreamingAudioGenerator::StartListening PixelStreamingModule not "
-                    "found, aborting."))
+                   "found, aborting."))
         return false;
     }
     return StreamerStartGenerating(PixelStreamingModule.GetDefaultStreamerID(), PlayerToListenTo);
@@ -39,8 +37,8 @@ bool UOdinPixelStreamingAudioGenerator::StreamerStartGenerating(FString Streamer
     if (!IPixelStreamingModule::IsAvailable()) {
         UE_LOG(LogOdinPixelStreaming, Verbose,
                TEXT("UOdinPixelStreamingAudioGenerator::StreamerStartListening Could not listen to "
-                    "anything because Pixel Streaming module is not loaded. This is expected on "
-                    "dedicated servers."));
+                   "anything because Pixel Streaming module is not loaded. This is expected on "
+                   "dedicated servers."));
         return false;
     }
 
@@ -48,7 +46,7 @@ bool UOdinPixelStreamingAudioGenerator::StreamerStartGenerating(FString Streamer
     if (!PixelStreamingModule.IsReady()) {
         UE_LOG(LogOdinPixelStreaming, Error,
                TEXT("UOdinPixelStreamingAudioGenerator::StreamerStartListening Pixel Streaming "
-                    "Module is not ready, cannot Start Generating."));
+                   "Module is not ready, cannot Start Generating."));
         return false;
     }
 
@@ -69,7 +67,7 @@ bool UOdinPixelStreamingAudioGenerator::StreamerStartGenerating(FString Streamer
     if (!Streamer) {
         UE_LOG(LogOdinPixelStreaming, Error,
                TEXT("UOdinPixelStreamingAudioGenerator::StreamerStartListening Did not find "
-                    "Streamer for StreamerId %s, cannot start generating Audio."),
+                   "Streamer for StreamerId %s, cannot start generating Audio."),
                *CurrentStreamerId);
         return false;
     }
@@ -81,7 +79,7 @@ bool UOdinPixelStreamingAudioGenerator::StreamerStartGenerating(FString Streamer
     if (CandidateSink == nullptr) {
         UE_LOG(LogOdinPixelStreaming, Verbose,
                TEXT("UOdinPixelStreamingAudioGenerator::StreamerStartListening Did not find a Peer "
-                    "Audio Sink for Player Id %s."),
+                   "Audio Sink for Player Id %s."),
                *CurrentPlayerId);
         return false;
     }
@@ -90,15 +88,15 @@ bool UOdinPixelStreamingAudioGenerator::StreamerStartGenerating(FString Streamer
     AudioSink->AddAudioConsumer(this);
 
     bool bGeneratorWasInitialized = false;
-    if (UWorld* World = GetWorld()) {
-        if (UGameInstance* GameInstance = World->GetGameInstance()) {
+    if (const UWorld*                               World          = GetWorld()) {
+        if (const UGameInstance*                    GameInstance   = World->GetGameInstance()) {
             if (UOdinSubsystem* OdinInitSystem =
-                    GameInstance->GetSubsystem<UOdinSubsystem>()) {
+                GameInstance->GetSubsystem<UOdinSubsystem>()) {
                 int32 OdinSampleRate   = OdinInitSystem->GetSampleRate();
                 int32 OdinChannelCount = OdinInitSystem->GetChannelCount();
                 UE_LOG(LogOdinPixelStreaming, Verbose,
                        TEXT("Init Odin Pixel Streaming Audio Generator with Sample Rate %d and "
-                            "Channel Count %d"),
+                           "Channel Count %d"),
                        OdinSampleRate, OdinChannelCount);
                 // Init UAudioGenerator with Odin Channels and SampleRate
                 Init(OdinSampleRate, OdinChannelCount);
@@ -110,9 +108,9 @@ bool UOdinPixelStreamingAudioGenerator::StreamerStartGenerating(FString Streamer
     if (!bGeneratorWasInitialized) {
         UE_LOG(LogOdinPixelStreaming, Error,
                TEXT("UOdinPixelStreamingAudioGenerator::StreamerStartGenerating: Could not "
-                    "initialize Generator, "
-                    "because Odin Initialization System is not available. "
-                    "Aborting Audio Generation for Streamer Id %s Player Id %s"),
+                   "initialize Generator, "
+                   "because Odin Initialization System is not available. "
+                   "Aborting Audio Generation for Streamer Id %s Player Id %s"),
                *StreamerId, *PlayerToListenTo);
         return false;
     }
@@ -127,6 +125,8 @@ void UOdinPixelStreamingAudioGenerator::StopGenerating()
 
     AudioSink     = nullptr;
     bIsGenerating = false;
+    bIsMuted = false;
+    VolumeMultiplier = 1.0f;
 }
 
 bool UOdinPixelStreamingAudioGenerator::IsGenerating() const
@@ -144,11 +144,16 @@ FString UOdinPixelStreamingAudioGenerator::GetConnectedStreamerId() const
     return CurrentStreamerId;
 }
 
-void UOdinPixelStreamingAudioGenerator::ConsumeRawPCM(const int16_t* AudioData, int InSampleRate,
-                                                      size_t NChannels, size_t NFrames)
+void UOdinPixelStreamingAudioGenerator::ConsumeRawPCM(const int16_t* AudioData, int    InSampleRate,
+                                                      size_t         NChannels, size_t NFrames)
 {
-    if (!IsGenerating())
+    if (!IsGenerating()) {
         return;
+    }
+
+    if(GetIsMuted()) {
+        return;
+    }
 
     if (nullptr == AudioData) {
         UE_LOG(LogOdinPixelStreaming, Error, TEXT("Audio Data null."));
@@ -163,11 +168,15 @@ void UOdinPixelStreamingAudioGenerator::ConsumeRawPCM(const int16_t* AudioData, 
     AudioBuffer.SetNum(NumSamples, EAllowShrinking::No);
     Audio::ArrayPcm16ToFloat(MakeArrayView(AudioData, NumSamples),
                              MakeArrayView(AudioBuffer.GetData(), NumSamples));
+    for (int32 BufferIndex = 0; BufferIndex < AudioBuffer.Num(); ++BufferIndex) {
+        AudioBuffer[BufferIndex] *= VolumeMultiplier;
+    }
+    
     OnGeneratedAudio(AudioBuffer.GetData(), NumSamples);
 
     UE_LOG(LogOdinPixelStreaming, VeryVerbose,
            TEXT("Called ConsumeRawPCM with InSampleRate %d, NChanncels %llu, NFrames %llu, Num "
-                "Samples Generated: %d"),
+               "Samples Generated: %d"),
            InSampleRate, NChannels, NFrames, NumSamples);
 }
 
@@ -182,6 +191,26 @@ void UOdinPixelStreamingAudioGenerator::OnConsumerRemoved()
     UE_LOG(LogOdinPixelStreaming, Verbose,
            TEXT("UOdinPixelStreamingAudioGenerator::OnConsumerRemoved"));
     StopGenerating();
+}
+
+bool UOdinPixelStreamingAudioGenerator::GetIsMuted() const
+{
+    return bIsMuted;
+}
+
+void UOdinPixelStreamingAudioGenerator::SetIsMuted(bool bNewIsMuted)
+{
+    bIsMuted = bNewIsMuted;
+}
+
+float UOdinPixelStreamingAudioGenerator::GetVolumeMultiplier() const
+{
+    return VolumeMultiplier;
+}
+
+void UOdinPixelStreamingAudioGenerator::SetVolumeMultiplier(float NewMultiplierValue)
+{
+    VolumeMultiplier = NewMultiplierValue;
 }
 
 bool UOdinPixelStreamingAudioGenerator::WillListenToAnyPlayer() const

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "IPixelStreamingAudioConsumer.h"
+#include "OdinAudioControl.h"
 #include "Generators/AudioGenerator.h"
 
 #include "OdinPixelStreamingAudioGenerator.generated.h"
@@ -16,16 +17,18 @@ class FWebRTCSoundGenerator;
  */
 UCLASS(Blueprintable, BlueprintType)
 class ODINPIXELSTREAMING_API UOdinPixelStreamingAudioGenerator : public UAudioGenerator,
-                                                                 public IPixelStreamingAudioConsumer
+                                                                 public
+                                                                 IPixelStreamingAudioConsumer,
+                                                                 public IOdinAudioControl
 {
     GENERATED_BODY()
 
-  protected:
+protected:
     UOdinPixelStreamingAudioGenerator();
 
     virtual void BeginDestroy() override;
 
-  public:
+public:
     /**
      * Starts generating audio for a specific player ID.
      * @param PlayerToListenTo - The ID of the player to listen to.
@@ -76,7 +79,7 @@ class ODINPIXELSTREAMING_API UOdinPixelStreamingAudioGenerator : public UAudioGe
      * @param NFrames - The number of audio frames.
      */
     virtual void ConsumeRawPCM(const int16_t* AudioData, int InSampleRate, size_t NChannels,
-                               size_t NFrames) override;
+                               size_t         NFrames) override;
     /**
      * Callback for when an audio consumer is added, when a new audio sink is available.
      */
@@ -88,14 +91,21 @@ class ODINPIXELSTREAMING_API UOdinPixelStreamingAudioGenerator : public UAudioGe
     virtual void OnConsumerRemoved() override;
     //~ End IPixelStreamingAudioConsumer interface
 
-  protected:
+    //~ Begin IOdinAudioControl interface
+    virtual bool  GetIsMuted() const override;
+    virtual void  SetIsMuted(bool bNewIsMuted) override;
+    virtual float GetVolumeMultiplier() const override;
+    virtual void  SetVolumeMultiplier(float NewMultiplierValue) override;
+    //~ End IOdinAudioControl interface
+
+protected:
     /**
      * Checks if the generator is set to listen to any player.
      * @return True if listening to any player, false otherwise.
      */
     bool WillListenToAnyPlayer() const;
 
-  private:
+private:
     /** Webrtc Audio sink for PixelStreaming audio */
     IPixelStreamingAudioSink* AudioSink;
     /** ID of the currently connected player */
@@ -107,4 +117,7 @@ class ODINPIXELSTREAMING_API UOdinPixelStreamingAudioGenerator : public UAudioGe
 
     /** Flag to indicate if audio generation is active */
     bool bIsGenerating;
+
+    bool  bIsMuted         = false;
+    float VolumeMultiplier = 1.0f;
 };
